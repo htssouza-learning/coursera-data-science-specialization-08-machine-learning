@@ -1,0 +1,117 @@
+---
+title: 'Practical Machine Learning Course Project - Weight Lifting Exercise Classification'
+author: "Henrique Souza (github.com/htssouza)"
+output:
+  html_document: default
+  pdf_document:
+    pandoc_args:
+    - +RTS
+    - -K64m
+    - -RTS
+---
+
+# Executive Summary
+
+This report describes the process behind the creation of a Machine Learning Model
+used to classify weight lifting exercise (Unilateral Dumbbell Biceps Curling) in classes:
+
+. A: exactly according to the specification;
+. B: throwing the elbows to the front;
+. C: lifting the dumbbell only halfway; 
+. D: lowering the dumbbell only halfway; 
+. E: throwing the hips to the front (Class E).
+
+More about the research and data used can be found on the following website:
+http://groupware.les.inf.puc-rio.br/har#weight_lifting_exercises#ixzz6CzLP0YxO
+
+<strong>TODO: resultado do modelo</strong>
+
+# Exploratory Data Analysis
+
+Our data source urls:
+
+```{r echo = TRUE}
+TRAINING_SOURCE_FILE_URL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+TESTING_SOURCE_FILE_URL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+```
+
+```{r echo = FALSE, message = FALSE}
+# libraries and data download
+library(caret)
+library(dplyr)
+library(ggplot2)
+
+WORKING_DIRECTORY <- getwd()
+TRAINING_FILE_PATH <- file.path(WORKING_DIRECTORY, "pml-training.csv")
+TESTING_FILE_PATH <- file.path(WORKING_DIRECTORY, "pml-testing.csv")
+
+if (! file.exists(TRAINING_FILE_PATH)) {
+    download.file(url = TRAINING_SOURCE_FILE_URL, destfile = TRAINING_FILE_PATH, method = "curl")
+}
+if (! file.exists(TESTING_FILE_PATH)) {
+    download.file(url = TESTING_SOURCE_FILE_URL, destfile = TESTING_FILE_PATH, method = "curl")
+}
+```
+
+Loading and splitting the data (training, validating and testing):
+
+```{r echo = TRUE}
+NA_STRINGS <- c("NA","#DIV/0!")
+training <- read.csv(TRAINING_FILE_PATH, na.strings = NA_STRINGS)
+testing <- read.csv(TESTING_FILE_PATH, na.strings = NA_STRINGS)
+in.training <- createDataPartition(y = training$class, p = 0.7, list = FALSE)
+validating <- training[-in.training, ]
+training <- training[in.training, ]
+```
+
+How our training dataset looks like:
+
+Rows for each "classe":
+
+Columns with high NA counts.
+
+Outliers.
+
+# Models
+
+Remove unecessary columns
+
+NZV
+
+Outlier removal.
+
+Normalization?
+
+Models
+
+# Model selection
+
+# Accuracy and Residual Analsysis
+
+# Prediction
+
+# Conclusion
+
+# Appendix
+
+Boxplot for each numeric variable per classe:
+
+```{r echo = FALSE, message = FALSE}
+numeric.columns <- names(training)[as.character(sapply(training, function(x) { class(x) })) %in% c("numeric", "integer")]
+unwanted.columns <- c("X", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp", "num_window")
+wanted.columns <- numeric.columns[! numeric.columns %in%unwanted.columns ]
+OUTLIER_IQR_FACTOR <- 2
+for(column.name in wanted.columns) {
+    df <- select(training, classe, var = !!column.name)
+    df <- filter(df, !is.na(var))
+    print(ggplot(data = df, aes(y = var, fill = classe)) +
+              geom_boxplot(coef = OUTLIER_IQR_FACTOR,
+                           outlier.colour = "red",
+                           outlier.shape = 16,
+                           outlier.size = 2,
+                           notch = FALSE) +
+              ggtitle(column.name))
+}
+
+```
+
