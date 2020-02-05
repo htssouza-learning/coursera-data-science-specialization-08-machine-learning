@@ -13,18 +13,18 @@ output:
 # Executive Summary
 
 This report describes the process behind the creation of a Machine Learning Model
-used to classify weight lifting exercise (Unilateral Dumbbell Biceps Curling) in classes:
+used to classify weight lifting exercise (unilateral dumbbell biceps curling) in classes:
 
-. A: exactly according to the specification;
-. B: throwing the elbows to the front;
-. C: lifting the dumbbell only halfway; 
-. D: lowering the dumbbell only halfway; 
-. E: throwing the hips to the front (Class E).
+  * A: exactly according to the specification;
+  * B: throwing the elbows to the front;
+  * C: lifting the dumbbell only halfway; 
+  * D: lowering the dumbbell only halfway; 
+  * E: throwing the hips to the front.
 
 More about the research and data used can be found on the following website:
 http://groupware.les.inf.puc-rio.br/har#weight_lifting_exercises#ixzz6CzLP0YxO
 
-<strong>TODO: resultado do modelo</strong>
+<strong>TODO: RESULTADO DO MODELO</strong>
 
 # Exploratory Data Analysis
 
@@ -40,6 +40,8 @@ TESTING_SOURCE_FILE_URL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/
 library(caret)
 library(dplyr)
 library(ggplot2)
+
+set.seed(12345)
 
 WORKING_DIRECTORY <- getwd()
 TRAINING_FILE_PATH <- file.path(WORKING_DIRECTORY, "pml-training.csv")
@@ -66,11 +68,42 @@ training <- training[in.training, ]
 
 How our training dataset looks like:
 
-Rows for each "classe":
+```{r echo = TRUE}
+dim(training)
+print(table(training$class))
+```
 
-Columns with high NA counts.
+Checking the presence of NAs per variable:
+
+```{r echo = FALSE, message = FALSE}
+na.per.column <- sapply(training, function(x) sum(is.na(x)) / length(x))
+na.per.column <- as.numeric(na.per.column[order(-na.per.column)])
+na.stats <- table(cut(na.per.column, 20))
+na.stats <- na.stats[na.stats > 0]
+```
+
+```{r echo = TRUE}
+na.stats
+```
+
+For a large number of variables, they have 95% of more of NAs values.
+These variables will be ignored on our models.
+
+```{r echo = FALSE, message = FALSE}
+unwanted.columns <- c("X", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp", "new_window", "num_window", "user_name")
+
+na.per.column <- sapply(training, function(x) sum(is.na(x)) / length(x))
+na.per.column <- na.per.column[order(-na.per.column)]
+almost.empty.columns <- names(na.per.column[as.numeric(na.per.column) >= 0.95])
+
+training <- training %>% 
+  select(-unwanted.columns) %>% 
+  select(-almost.empty.columns) 
+```
 
 Outliers.
+
+You can see more details about the training dataset on the Appendix.
 
 # Models
 
@@ -94,14 +127,26 @@ Models
 
 # Appendix
 
+Variables there are being ignored:
+
+```{r echo = TRUE}
+unwanted.columns
+almost.empty.columns
+```
+
+With the removal of variables with too many NAs, there are no more NearZeroVars as well:
+
+```{r echo = TRUE}
+nzv <- nearZeroVar(training, saveMetrics = TRUE)
+print(nzv[nzv$nzv,])
+```
+
 Boxplot for each numeric variable per classe:
 
 ```{r echo = FALSE, message = FALSE}
 numeric.columns <- names(training)[as.character(sapply(training, function(x) { class(x) })) %in% c("numeric", "integer")]
-unwanted.columns <- c("X", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp", "num_window")
-wanted.columns <- numeric.columns[! numeric.columns %in%unwanted.columns ]
 OUTLIER_IQR_FACTOR <- 2
-for(column.name in wanted.columns) {
+for(column.name in numeric.columns) {
     df <- select(training, classe, var = !!column.name)
     df <- filter(df, !is.na(var))
     print(ggplot(data = df, aes(y = var, fill = classe)) +
@@ -112,6 +157,5 @@ for(column.name in wanted.columns) {
                            notch = FALSE) +
               ggtitle(column.name))
 }
-
 ```
 
