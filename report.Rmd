@@ -24,7 +24,7 @@ used to classify weight lifting exercise (unilateral dumbbell biceps curling) in
 More about the research and data used can be found on the following website:
 http://groupware.les.inf.puc-rio.br/har#weight_lifting_exercises#ixzz6CzLP0YxO
 
-<strong>TODO: RESULTADO DO MODELO</strong>
+Our accuracy measured on a validation dataset (part of training) was higher than 95%.
 
 # Exploratory Data Analysis
 
@@ -66,7 +66,7 @@ validating <- training[-in.training, ]
 training <- training[in.training, ]
 ```
 
-How our training dataset looks like:
+How our original training dataset looks like:
 
 ```{r echo = TRUE}
 dim(training)
@@ -86,12 +86,17 @@ na.stats <- na.stats[na.stats > 0]
 na.stats
 ```
 
-For a large number of variables, they have 95% of more of NAs values.
+A large number of variables have 95% or more of NAs values.
 These variables will be ignored on our models.
 
-```{r echo = FALSE, message = FALSE}
-unwanted.columns <- c("X", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp", "new_window", "num_window", "user_name")
+We will always remove other variables that should not be related to the response,
+such as timestamp and the name of the atlet.
 
+```{r echo = TRUE}
+unwanted.columns <- c("X", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp", "new_window", "num_window", "user_name")
+```
+
+```{r echo = FALSE, message = FALSE}
 na.per.column <- sapply(training, function(x) sum(is.na(x)) / length(x))
 na.per.column <- na.per.column[order(-na.per.column)]
 almost.empty.columns <- names(na.per.column[as.numeric(na.per.column) >= 0.95])
@@ -101,29 +106,73 @@ training <- training %>%
   select(-almost.empty.columns) 
 ```
 
-Outliers.
+You can see plots and more details about the training dataset on the Appendix.
 
-You can see more details about the training dataset on the Appendix.
+New dimensions of our training dataset:
 
-# Models
+```{r echo = TRUE}
+dim(training)
+```
 
-Remove unecessary columns
+# Modelling
 
-NZV
+PCA:
 
-Outlier removal.
+```{r echo = TRUE}
+model.pca <- preProcess(training, method = "pca", thresh = 80/100)
+training.pcs <- predict(model.pca, training)
+validating.pcs <- predict(model.pca, validating)
+```
 
-Normalization?
+Columns of our training dataset only with the principal components:
 
-Models
+```{r echo = TRUE}
+ncol(select(training.pcs, -classe))
+```
+
+We are training 2 models: Random Forest and GBM.
+
+```{r echo = TRUE}
+model.rf <- train(classe ~ ., method = "rf", data = training.pcs, trControl = trainControl(method="cv"), number = 3)
+model.gbm <- train(classe ~ ., method = "gbm", data = training.pcs, verbose = FALSE)
+```
 
 # Model selection
 
-# Accuracy and Residual Analsysis
+Accuracy of our models on the training dataset:
+
+```{r echo = TRUE}
+confusionMatrix(training.pcs$classe, predict(model.rf))$overall['Accuracy']
+confusionMatrix(training.pcs$classe, predict(model.gbm))$overall['Accuracy']
+```
+
+Now, checking the accuracy on the validation dataset:
+
+```{r echo = FALSE}
+validating.rf <- predict(model.rf, newdata = validating.pcs)
+validating.gbm <- predict(model.gbm, newdata = validating.pcs)
+```
+
+```{r echo = TRUE}
+confusionMatrix(validating.pcs$class, validating.rf)$overall['Accuracy']
+confusionMatrix(validating.pcs$class, validating.gbm)$overall['Accuracy']
+```
+
+As the Random Forest model is already achieving a very high accuracy, no stacking/ensemble will be performed.
 
 # Prediction
 
+```{r echo = TRUE}
+testing.pcs <- predict(model.pca, testing)
+result <- predict(model.rf, newdata = testing.pcs)
+result
+```
+
 # Conclusion
+
+We were able to build a very accurate model for our classification problem.
+
+Using PCA we were able to reduce the model to 12 variables (components).
 
 # Appendix
 
